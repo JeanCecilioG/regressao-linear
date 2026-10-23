@@ -1,0 +1,11 @@
+# Ambiente virtual e IDE
+.venv/
+.idea/
+# Arquivos gerados pelo Python e Jupyter
+__pycache__/
+.ipynb_checkpoints/
+
+# Dados e modelos (podem ser recriados)
+data/raw/*.csv
+data/processed/*.csv
+models/*.joblib
