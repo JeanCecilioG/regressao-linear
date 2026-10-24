@@ -1,52 +1,69 @@
-# Regressão Linear – California Housing
+# Previsão do valor de casas na Califórnia com regressão linear
 
-Projeto de estudo: construir, passo a passo e do jeito que se faz no mercado, um pipeline de
-Machine Learning que prevê o **valor médio das casas** em bairros da Califórnia.
+Projeto de Machine Learning feito do início ao fim: da análise dos dados até um modelo salvo que
+prevê o valor das casas de um bairro.
 
-> Este README é também um diário de aprendizado: cada etapa registra **o que foi feito** e
-> **o que foi aprendido**.
+**Tecnologias:** Python, pandas, scikit-learn, matplotlib, seaborn, Jupyter.
 
-## Sobre os dados
+## Resultado
 
-- **Dataset:** California Housing (censo dos EUA de 1990), disponível no scikit-learn via
-  `sklearn.datasets.fetch_california_housing`.
-- **Tamanho:** 20.640 bairros (linhas) × 9 colunas.
-- **Alvo:** `MedHouseVal`, o valor médio das casas, em centenas de milhares de dólares.
+| Modelo | Erro médio (MAE) | RMSE | R² |
+|---|---|---|---|
+| Chutar sempre a média (referência) | US$ 90.600 | 1.145 | 0.00 |
+| **Regressão linear** | **US$ 53.300** | **0.746** | **0.58** |
 
-| Coluna | Significado |
+O modelo erra **41% menos** do que chutar a média e explica cerca de **58%** da variação dos preços.
+Esses números vêm de dados que o modelo nunca viu durante o treino.
+
+![Valor real x valor previsto](reports/figures/real_x_previsto.png)
+
+**Limitações:** o modelo erra mais nos bairros caros, porque os dados cortam os valores em
+US$ 500 mil, e às vezes prevê valores impossíveis (negativos). Ele serve para entender tendências,
+não para definir o preço de um imóvel.
+
+## Os dados
+
+O conjunto **California Housing** (censo dos EUA de 1990) tem **20.640 bairros**. Para cada um:
+
+| Coluna | O que é |
 |---|---|
-| `MedInc` | renda média do bairro (dezenas de milhares de dólares) |
+| `MedInc` | renda média das famílias (em US$ 10 mil) |
 | `HouseAge` | idade média das casas |
-| `AveRooms` | média de cômodos por casa |
-| `AveBedrms` | média de quartos por casa |
-| `Population` | população do bairro |
-| `AveOccup` | média de moradores por casa |
+| `AveRooms` / `AveBedrms` | média de cômodos e de quartos por casa |
+| `Population` / `AveOccup` | moradores no bairro e média por casa |
 | `Latitude` / `Longitude` | localização |
-| `MedHouseVal` | **alvo**: valor médio das casas |
+| `MedHouseVal` | **o que queremos prever:** valor médio das casas (em US$ 100 mil) |
 
-O CSV **não é versionado**. Para recriar `data/raw/california_housing.csv`:
+## Como o projeto foi feito
 
-```python
-from sklearn.datasets import fetch_california_housing
+**1. Análise dos dados** (`notebooks/01_eda.ipynb`)
+- Os dados estão completos (não há valores faltando).
+- A **renda** é a variável mais ligada ao preço.
+- Encontrei problemas: os preços estão **cortados em US$ 500 mil**, a idade das casas em 52 anos, e
+  há bairros com valores absurdos (até 1.243 moradores por casa).
 
-fetch_california_housing(as_frame=True).frame.to_csv("data/raw/california_housing.csv", index=False)
-```
+**2. Referência para comparar** (`notebooks/02_baseline.ipynb`)
+- Antes de treinar, criei um "modelo" que sempre chuta o preço médio. Qualquer modelo útil precisa
+  errar menos que ele.
+- Separei 20% dos dados para o **teste final**, usado só uma vez, no fim.
 
-## Estrutura do projeto
+**3. Modelo** (`notebooks/03_regressao.ipynb`)
+- Comparei a regressão usando **só a renda** com a regressão usando **todas as colunas**:
 
-```
-regressao-linear/
-├── data/
-│   ├── raw/              # dados originais – nunca editados
-│   └── processed/        # dados limpos/transformados
-├── notebooks/            # exploração (EDA): rascunho, gráficos, perguntas
-├── src/                  # código reaproveitável do pipeline
-├── models/               # modelos treinados (.joblib)
-├── reports/figures/      # gráficos de resultado
-├── requirements.txt      # bibliotecas com versões fixadas
-├── .gitignore
-└── README.md
-```
+  | Modelo | Erro médio |
+  |---|---|
+  | Só renda | US$ 63.100 |
+  | **Todas as colunas** | **US$ 53.300** |
+
+- **A descoberta mais interessante:** a localização parecia irrelevante na análise inicial, mas
+  dentro do modelo é o que mais pesa. Bairros com a mesma renda valem mais perto do litoral.
+
+**4. Teste final** (`notebooks/04_teste.ipynb`)
+- Treinei o modelo escolhido e o avaliei **uma única vez** nos dados guardados (resultado acima).
+
+**5. Modelo pronto para uso** (`treino.py` e `prever.py`)
+- `treino.py` treina e salva o modelo. `prever.py` carrega o modelo e estima o valor de um bairro novo.
+- Exemplo: um bairro em Los Angeles com renda de US$ 50 mil/ano → **US$ 249.848**.
 
 ## Como rodar
 
@@ -54,232 +71,35 @@ regressao-linear/
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+python treino.py    # treina e salva o modelo em models/
+python prever.py    # prevê o valor de um bairro novo
 ```
 
-## Roteiro
+## Estrutura
 
-- [x] **0. Estrutura e ambiente:** pastas, `requirements.txt`, `.gitignore`, Git e GitHub
-- [x] **1. Análise exploratória (EDA):** `notebooks/01_eda.ipynb`
-- [x] **2. Métrica e modelo baseline:** `notebooks/02_baseline.ipynb`
-- [x] **3. Pré-processamento + regressão linear:** `notebooks/03_regressao.ipynb`
-- [ ] ~~**4. Validação cruzada**~~ *(pulada: a validação simples da Etapa 3 foi considerada suficiente)*
-- [x] **5. Avaliação final no teste:** `notebooks/04_teste.ipynb`
-- [ ] **6. Salvar o modelo e fazer previsões**
+```
+regressao-linear/
+├── data/raw/              # dados originais
+├── notebooks/             # análise e experimentos (01 a 04)
+├── models/                # modelo treinado
+├── reports/figures/       # gráficos
+├── treino.py              # treina o modelo
+├── prever.py              # usa o modelo
+└── requirements.txt       # bibliotecas usadas
+```
 
----
+## O que aprendi
 
-## Diário de aprendizado
+- **Analisar antes de modelar:** dados sem valores faltando ainda podem ter problemas escondidos,
+  e foram justamente esses problemas que explicaram onde o modelo erra.
+- **Sempre ter uma referência:** um número de erro só tem sentido comparado a algo simples.
+- **Não "espiar" o teste:** comparei os modelos em uma parte separada dos dados e deixei o teste
+  para o final, para ter um resultado honesto.
+- **Uma correlação baixa não significa uma variável inútil:** a localização provou isso.
+- **Testar em vez de achar:** cada dúvida virou um experimento medido.
 
-### Etapa 0 – Estrutura e ambiente
+## Próximos passos
 
-**O que foi feito**
-- Criada a estrutura de pastas separando dados, exploração, código, modelos e relatórios.
-- O CSV original foi colocado em `data/raw/`, que nunca é editada.
-- O `requirements.txt` foi escrito com as versões fixadas.
-- O `.gitignore` foi criado, o Git iniciado e o repositório publicado no GitHub com `gh repo create`.
-
-**O que foi aprendido**
-- **Notebook × `src/`:** o notebook serve para *explorar e decidir*, e o `src/` para *executar*.
-  O que funciona no notebook vira código limpo no `src/`.
-- **`data/raw` é intocável:** toda transformação gera um arquivo novo em `data/processed`, o que
-  permite refazer tudo do zero.
-- **Ambiente virtual (`.venv`):** uma "caixa" isolada de bibliotecas por projeto. O terminal
-  mostra `(.venv)` quando ela está ativa.
-- **`requirements.txt` não é código:** é uma lista de pacotes para o `pip`, um por linha e sem
-  `import`. O nome para instalar pode ser diferente do nome no código, por exemplo
-  `scikit-learn` → `import sklearn`.
-- **Fixar versões (`pacote==versão`):** garante que o projeto continue funcionando no futuro. A
-  versão escrita precisa ser a que está **realmente instalada**, conferida com `pip show pacote`.
-- **`pip freeze` × lista manual:** o `freeze` despeja todas as dependências internas. A lista à
-  mão contém só o que o código usa diretamente.
-- **`.gitignore`:** fica fora do Git tudo que pode ser **recriado** (`.venv`, `__pycache__`,
-  dados, modelos) ou que é **pessoal da máquina** (`.idea`). O código sempre entra.
-- **`.gitkeep`:** o Git não guarda pastas vazias. Um arquivo vazio dentro delas garante que a
-  estrutura chegue ao GitHub.
-- **Commit em duas etapas:** `git add` escolhe o que entra e `git commit -m "..."` salva. Antes do
-  commit, `git status` confere o que vai entrar. Uma boa mensagem diz o que o commit faz.
-
-### Etapa 1 – Análise exploratória (EDA)
-
-Notebook: `notebooks/01_eda.ipynb`
-
-**O que foi feito no notebook**
-- Carregamento do CSV com `pd.read_csv` e tamanho com `.shape` → 20.640 linhas × 9 colunas.
-- Primeiro olhar com `.head()`, tipos e valores faltando com `.info()`.
-- Resumo estatístico com `.describe()` e `.describe().T`.
-- Correlação de cada coluna com o alvo: `dados.corr()["MedHouseVal"].sort_values(ascending=False)`.
-- Dispersão `MedInc` × `MedHouseVal` (`dados.plot.scatter`).
-- Histogramas de todas as colunas (`dados.hist(bins=50)`).
-- Células Markdown com as observações, `## Conclusões` e `## Ideias para o modelo`.
-
-**O que encontramos**
-
-| Achado | Evidência no notebook | Impacto no modelo |
-|---|---|---|
-| Dados **completos** | `.info()`: todas as 9 colunas com 20.640 valores não nulos, todas `float64` | não é preciso preencher valores |
-| `MedInc` é a variável mais relacionada ao preço | correlação ≈ 0.69; as demais ficam entre -0.14 e 0.15 | candidata principal; vamos testar "só renda × todas" |
-| **Teto** no alvo | `.describe()`: máximo = 5.00001; na dispersão aparece como uma "parede" de pontos no topo | valores acima de US$ 500 mil foram cortados; o modelo vai errar nos bairros caros |
-| **Valores errados** em `AveOccup` | `.describe()`: máximo ≈ 1.243 moradores por residência | outliers (alojamentos, presídios ou erro de dado) |
-| **Teto** em `HouseAge` | histograma: barra alta isolada em 52 | idade "52" significa "52 ou mais" |
-| Distribuições **assimétricas à direita** | histogramas de `MedInc` e `MedHouseVal`: cauda longa (típico de variáveis de dinheiro) | testar a transformação log |
-| Escalas muito diferentes | `Population` na casa dos milhares, `MedInc` entre 0.5 e 15 | padronizar antes de treinar |
-
-**Hipóteses para testar na Etapa 3**
-- Só renda × todas as colunas.
-- Com × sem os bairros no teto de 5.
-- Log em `MedInc` e `MedHouseVal`.
-- Localização: criar a *feature* "distância até LA/SF".
-
-**Ficou de fora (opcional)**
-- Mapa de calor (`sns.heatmap`): multicolinearidade `AveRooms` × `AveBedrms` (≈ 0.85).
-- Mapa da Califórnia colorido pelo valor das casas.
-
-**O que foi aprendido**
-- **Cada linha é um bairro**, não uma casa. Quase todas as colunas são médias ou medianas do bairro, e
-  cada uma tem a sua unidade (renda em US$ 10 mil, valor em US$ 100 mil).
-- **Correlação de Pearson** (-1 a +1) mede relação **em linha reta**. Ela não prova causa, e um valor
-  perto de 0 não significa "sem relação": a localização é o exemplo deste projeto.
-- **Ler o mapa de calor:** a linha do alvo responde "o que se relaciona com o preço?". Os pares
-  entrada × entrada respondem "tem colunas repetindo informação?".
-- **A intuição gera hipóteses, mas quem decide são os dados:** "mais quartos = mais caro" deu ≈ 0.
-- **Sem valores faltando ≠ dados limpos.** No `describe()`, compare o 75% com o máximo para achar
-  outliers; valores máximos "redondos" demais (5.00001) indicam teto.
-- **Outlier × teto (censura):** um outlier são poucos valores extremos e raros; um teto são muitos
-  valores presos no mesmo limite porque o dado foi cortado na coleta.
-- **Gráfico > número:** a correlação de 0.69 não mostra o teto, mas a dispersão mostra.
-- **Histogramas parecidos ≠ variáveis relacionadas.** O histograma olha cada coluna sozinha. Embaralhar
-  uma coluna mantém o histograma e zera a correlação. Quem mostra relação é a dispersão.
-- **Cauda longa à direita** é típica de dinheiro (renda, preço). O `log` costuma deixar a relação mais linear.
-- **Cada descoberta vira hipótese, e cada hipótese vira experimento** medido na etapa de modelagem.
-
-### Etapa 2 – Métrica e modelo baseline
-
-Notebook: `notebooks/02_baseline.ipynb`
-
-**O que foi feito**
-- Separação das entradas `X` (8 colunas) e do alvo `y` (`MedHouseVal`).
-- Divisão em treino (80%, 16.512 bairros) e teste (20%, 4.128 bairros) com `train_test_split(..., random_state=42)`.
-- Baseline `DummyRegressor(strategy="mean")`: prevê sempre a média do treino (≈ 2.07 = US$ 207 mil).
-- Avaliação no teste com MAE, RMSE e R².
-
-**Resultado do baseline (a linha de chegada mínima)**
-
-| Métrica | Valor | Em dólares |
-|---|---|---|
-| MAE | 0.906 | erra em média ≈ US$ 90.600 |
-| RMSE | 1.145 | ≈ US$ 114.500 (pune mais os erros grandes) |
-| R² | -0.000 | não explica nada da variação dos preços |
-
-Qualquer modelo daqui em diante precisa ter **RMSE bem abaixo de 1.145** e **R² bem acima de 0**.
-
-**O que foi aprendido**
-- **Um número sozinho não diz se o modelo é bom:** é preciso uma métrica e um baseline para comparar.
-- **MAE** é o erro médio, fácil de explicar. **RMSE** eleva os erros ao quadrado antes da média, então
-  pune mais os erros grandes; é a métrica principal do projeto. **R²** é a fração da variação explicada:
-  1 = perfeito, 0 = igual a chutar a média, negativo = pior que a média.
-- **Por que o R² deu -0.000:** o baseline chuta a média do **treino** (2.072), mas o R² compara com a
-  média do **teste** (2.055). A diferença é minúscula, então o R² fica um "zero levemente negativo".
-- **Treino × teste:** o modelo só é avaliado em dados que nunca viu. O teste fica "no cofre" até o fim.
-- **`random_state`** fixa o sorteio da divisão e deixa o experimento reprodutível.
-- **Convenção:** `X` maiúsculo (tabela de entradas) e `y` minúsculo (vetor do alvo).
-
-### Etapa 3 – Regressão linear
-
-Notebook: `notebooks/03_regressao.ipynb`
-
-**Meta definida antes de rodar:** R² ≥ 0.60 e RMSE ≤ 0.75 na validação. Desafio: RMSE < 0.70.
-
-**O que foi feito**
-- Nova divisão: treino 60%, **validação 20%** (para comparar modelos) e teste 20% (guardado até a Etapa 5).
-- Função `avaliar()` para treinar e medir qualquer modelo na validação.
-- Pipeline `make_pipeline(StandardScaler(), LinearRegression())`.
-- Experimento 1: **só renda × todas as colunas**.
-
-**Experimento 1: resultados na validação**
-
-| Modelo | MAE | RMSE | R² |
-|---|---|---|---|
-| Baseline (média) | 0.925 | 1.172 | -0.000 |
-| Só `MedInc` | 0.631 | 0.843 | 0.483 |
-| **Todas as colunas** | **0.533** | **0.728** | **0.614** |
-
-- A regressão com todas as colunas **bateu a meta principal** (R² 0.614 ≥ 0.60; RMSE 0.728 ≤ 0.75).
-- O erro médio caiu de ≈ US$ 92 mil (baseline) para ≈ US$ 53 mil, cerca de 42% menos.
-- As colunas com correlação baixa **ajudaram**: o RMSE caiu de 0.843 para 0.728 em relação a "só renda".
-- O baseline mudou de 1.145 (Etapa 2) para 1.172 porque agora é medido na validação, não no teste.
-
-**Coeficientes do modelo com todas as colunas (variáveis padronizadas)**
-
-| Coluna | Coeficiente | Leitura |
-|---|---|---|
-| `Latitude` | -0.888 | mais ao norte → mais barato (mantendo as outras fixas) |
-| `Longitude` | -0.862 | mais a leste (longe do mar) → mais barato |
-| `MedInc` | 0.860 | mais renda → mais caro |
-| `AveBedrms` | 0.312 | sinais opostos por causa da multicolinearidade: |
-| `AveRooms` | -0.280 | não interpretar separadamente |
-| `HouseAge` | 0.120 | efeito pequeno |
-| `AveOccup` | -0.026 | quase nada |
-| `Population` | -0.010 | quase nada |
-
-- A **localização tem os maiores pesos**, apesar da correlação ≈ 0 na EDA. Juntas, latitude e
-  longitude negativas formam um "eixo litoral": sudoeste (costa, LA) → caro; nordeste (interior) → barato.
-- `AveRooms` e `AveBedrms` "brigam" entre si (correlação ≈ 0.85): um peso compensa o outro.
-
-**Decisão:** o modelo escolhido é **StandardScaler + LinearRegression com as 8 colunas originais**. As outras hipóteses da EDA (distância até LA/SF, log, remover o teto) ficaram como melhorias futuras: a regressão linear tem um limite de RMSE ≈ 0.68–0.70 neste dataset, e o ganho esperado não justifica a complexidade neste projeto de estudo.
-
-**O que foi aprendido**
-- **Coeficiente padronizado:** quanto o preço muda quando a coluna sobe um desvio padrão, **mantendo as
-  outras fixas**. Como estão na mesma escala, dá para compará-los.
-- **Correlação isolada × peso no modelo:** a latitude tinha correlação -0.14 e virou o maior peso. A
-  correlação olha uma coluna sozinha; o modelo olha o efeito dela descontando as outras.
-- **Multicolinearidade na prática:** colunas muito correlacionadas ganham pesos grandes e de sinais
-  opostos. O modelo continua prevendo bem, mas os coeficientes individuais deixam de ser confiáveis.
-- **Não comparar modelos no teste:** escolher o melhor olhando o teste "contamina" a prova final. Para
-  comparar, use um conjunto de **validação** (o simulado) e deixe o teste para o fim.
-- **Meta antes de rodar:** combina o piso (baseline), o uso real (erro relativo aceitável) e o realista
-  (o limite do modelo). Assim evita-se aceitar qualquer número depois.
-- **Padronização (`StandardScaler`):** coloca as colunas na mesma escala (média 0, desvio 1).
-- **`Pipeline` e data leakage:** o pipeline garante que o scaler aprenda só com o treino; aprender com a
-  validação ou o teste vazaria informação.
-- **Correlação baixa ≠ coluna inútil:** juntas, as colunas se complementam. A localização ajuda a
-  diferenciar bairros de mesma renda.
-- **`X[["coluna"]]`** (colchetes duplos) mantém o formato de tabela que o scikit-learn exige.
-- **Saber a hora de parar:** testar só as hipóteses que vieram da EDA e parar quando o ganho for pequeno
-  ou o modelo chegar ao seu limite. Um modelo bom e entregue vale mais que um perfeito que nunca termina.
-
-### Etapa 5 – Teste final
-
-Notebook: `notebooks/04_teste.ipynb`
-
-**O que foi feito**
-- Modelo escolhido (StandardScaler + LinearRegression, 8 colunas) treinado com **todo o treino** (80%).
-- Avaliação no teste (20%) **uma única vez**.
-- Gráfico real × previsto salvo em `reports/figures/real_x_previsto.png`.
-
-**Resultado final (teste)**
-
-| Modelo | MAE | RMSE | R² |
-|---|---|---|---|
-| Baseline (média) | 0.906 | 1.145 | -0.000 |
-| **Regressão linear** | **0.533** | **0.746** | **0.576** |
-
-- Erro médio de **≈ US$ 53 mil**, contra US$ 91 mil do baseline (≈ 41% menos).
-- Ficou um pouco **pior que na validação** (RMSE 0.728, R² 0.614): é normal, e é por isso que se reporta
-  o teste. A meta de R² ≥ 0.60 não se confirmou no teste.
-
-![Real x previsto](reports/figures/real_x_previsto.png)
-
-**O que o gráfico mostra**
-- A nuvem de pontos é **mais "deitada" que a linha vermelha**: o modelo superestima os bairros baratos
-  e subestima os caros. Ele "puxa" tudo para perto da média.
-- **Coluna vertical em 5.0:** são os 184 bairros do teto. O modelo prevê de ≈ 1 a 7 para eles (média 3.85).
-- **Previsões impossíveis:** 15 bairros com preço **negativo** e um com 11.5 (provavelmente um outlier de
-  `AveOccup`). Uma reta não sabe que preço não pode ser negativo.
-
-**O que foi aprendido**
-- **O teste é aberto uma vez só**, e o resultado é reportado mesmo que não agrade. Voltar para ajustar o
-  modelo transformaria o teste em mais um simulado.
-- **Validação × teste:** é normal o teste sair um pouco diferente da validação. O número honesto é o do teste.
-- **Gráfico real × previsto:** pontos na linha vermelha = acerto. Uma nuvem mais inclinada ou mais deitada
-  que a linha indica **viés sistemático**, não apenas ruído.
-- **Os problemas da EDA reaparecem no resultado:** o teto e os outliers são exatamente onde o modelo mais erra.
+- Criar variáveis novas, como a distância até Los Angeles e São Francisco.
+- Usar validação cruzada para um resultado mais robusto.
+- Comparar com modelos que capturam relações não lineares (por exemplo, Random Forest).
