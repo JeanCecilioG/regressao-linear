@@ -61,9 +61,9 @@ pip install -r requirements.txt
 - [x] **0. Estrutura e ambiente:** pastas, `requirements.txt`, `.gitignore`, Git e GitHub
 - [x] **1. Análise exploratória (EDA):** `notebooks/01_eda.ipynb`
 - [x] **2. Métrica e modelo baseline:** `notebooks/02_baseline.ipynb`
-- [ ] **3. Pré-processamento + regressão linear:** `notebooks/03_regressao.ipynb` *(em andamento)*
-- [ ] **4. Validação cruzada**
-- [ ] **5. Avaliação final no teste**
+- [x] **3. Pré-processamento + regressão linear:** `notebooks/03_regressao.ipynb`
+- [ ] ~~**4. Validação cruzada**~~ *(pulada: a validação simples da Etapa 3 foi considerada suficiente)*
+- [x] **5. Avaliação final no teste:** `notebooks/04_teste.ipynb`
 - [ ] **6. Salvar o modelo e fazer previsões**
 
 ---
@@ -183,7 +183,7 @@ Qualquer modelo daqui em diante precisa ter **RMSE bem abaixo de 1.145** e **R²
 - **`random_state`** fixa o sorteio da divisão e deixa o experimento reprodutível.
 - **Convenção:** `X` maiúsculo (tabela de entradas) e `y` minúsculo (vetor do alvo).
 
-### Etapa 3 – Regressão linear *(em andamento)*
+### Etapa 3 – Regressão linear
 
 Notebook: `notebooks/03_regressao.ipynb`
 
@@ -225,6 +225,8 @@ Notebook: `notebooks/03_regressao.ipynb`
   longitude negativas formam um "eixo litoral": sudoeste (costa, LA) → caro; nordeste (interior) → barato.
 - `AveRooms` e `AveBedrms` "brigam" entre si (correlação ≈ 0.85): um peso compensa o outro.
 
+**Decisão:** o modelo escolhido é **StandardScaler + LinearRegression com as 8 colunas originais**. As outras hipóteses da EDA (distância até LA/SF, log, remover o teto) ficaram como melhorias futuras: a regressão linear tem um limite de RMSE ≈ 0.68–0.70 neste dataset, e o ganho esperado não justifica a complexidade neste projeto de estudo.
+
 **O que foi aprendido**
 - **Coeficiente padronizado:** quanto o preço muda quando a coluna sobe um desvio padrão, **mantendo as
   outras fixas**. Como estão na mesma escala, dá para compará-los.
@@ -242,3 +244,42 @@ Notebook: `notebooks/03_regressao.ipynb`
 - **Correlação baixa ≠ coluna inútil:** juntas, as colunas se complementam. A localização ajuda a
   diferenciar bairros de mesma renda.
 - **`X[["coluna"]]`** (colchetes duplos) mantém o formato de tabela que o scikit-learn exige.
+- **Saber a hora de parar:** testar só as hipóteses que vieram da EDA e parar quando o ganho for pequeno
+  ou o modelo chegar ao seu limite. Um modelo bom e entregue vale mais que um perfeito que nunca termina.
+
+### Etapa 5 – Teste final
+
+Notebook: `notebooks/04_teste.ipynb`
+
+**O que foi feito**
+- Modelo escolhido (StandardScaler + LinearRegression, 8 colunas) treinado com **todo o treino** (80%).
+- Avaliação no teste (20%) **uma única vez**.
+- Gráfico real × previsto salvo em `reports/figures/real_x_previsto.png`.
+
+**Resultado final (teste)**
+
+| Modelo | MAE | RMSE | R² |
+|---|---|---|---|
+| Baseline (média) | 0.906 | 1.145 | -0.000 |
+| **Regressão linear** | **0.533** | **0.746** | **0.576** |
+
+- Erro médio de **≈ US$ 53 mil**, contra US$ 91 mil do baseline (≈ 41% menos).
+- Ficou um pouco **pior que na validação** (RMSE 0.728, R² 0.614): é normal, e é por isso que se reporta
+  o teste. A meta de R² ≥ 0.60 não se confirmou no teste.
+
+![Real x previsto](reports/figures/real_x_previsto.png)
+
+**O que o gráfico mostra**
+- A nuvem de pontos é **mais "deitada" que a linha vermelha**: o modelo superestima os bairros baratos
+  e subestima os caros. Ele "puxa" tudo para perto da média.
+- **Coluna vertical em 5.0:** são os 184 bairros do teto. O modelo prevê de ≈ 1 a 7 para eles (média 3.85).
+- **Previsões impossíveis:** 15 bairros com preço **negativo** e um com 11.5 (provavelmente um outlier de
+  `AveOccup`). Uma reta não sabe que preço não pode ser negativo.
+
+**O que foi aprendido**
+- **O teste é aberto uma vez só**, e o resultado é reportado mesmo que não agrade. Voltar para ajustar o
+  modelo transformaria o teste em mais um simulado.
+- **Validação × teste:** é normal o teste sair um pouco diferente da validação. O número honesto é o do teste.
+- **Gráfico real × previsto:** pontos na linha vermelha = acerto. Uma nuvem mais inclinada ou mais deitada
+  que a linha indica **viés sistemático**, não apenas ruído.
+- **Os problemas da EDA reaparecem no resultado:** o teto e os outliers são exatamente onde o modelo mais erra.
